@@ -1,0 +1,229 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+        #btnContainer {
+            padding: 10px 10px  ; 
+            margin: 10px;
+        }
+
+        #optionsDiv {
+            background-color: dimgray;
+            color: white;
+            z-index: 23;
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            padding: 0px 0px 0px 10px;
+            border-bottom-left-radius: 5px;
+            max-width: 350px;
+        }
+
+        #optionsDiv1 {
+            position: absolute;
+            bottom: 17px;
+            width: 100%;
+            padding: 20px 0;
+            z-index: 1;
+            text-align: right;
+            float:right;
+        }
+
+
+        button {
+            background: white;
+            padding: 7px;
+            border: 1px solid #005e95;
+            font-size: 0.9em;
+            margin: 5px;
+            color: #005e95;
+            font-family: "Avenir Next W01", "Arial", sans-serif;
+        }
+
+            button:hover {
+                background: #005e95;
+                color: white;
+                cursor: pointer;
+            }
+
+    </style>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+    <script src="https://js.arcgis.com/4.3/"></script>
+
+    <script>
+        require([
+            "esri/views/MapView",
+            "esri/WebMap",
+            "esri/widgets/ScaleBar",
+            "esri/layers/GraphicsLayer",
+            "esri/tasks/QueryTask",
+            "esri/tasks/support/Query",
+            "dojo/_base/array",
+            "dojo/dom",
+            "dojo/on",
+            "esri/request",
+            "esri/widgets/Search",
+            "esri/widgets/Home",
+            "dojo/domReady!"
+        ], function (
+            MapView, WebMap, ScaleBar, GraphicsLayer,
+            QueryTask, Query, arrayUtils, dom, on, esriRequest, Search, Home
+        ) {
+
+
+                var nzBrewUrl =
+                    "http://services.arcgis.com/XTtANUDT8Va4DLwI/arcgis/rest/services/NZBrewLocation/FeatureServer/0";
+
+             
+                var url= "http://services.arcgis.com/XTtANUDT8Va4DLwI/arcgis/rest/services/NZBrewLocation/FeatureServer/0?f=pjson";
+                esriRequest(url, {
+                    responseType: "json"
+                }).then(function (response) {
+                    var geoJson = response.data;
+                    //trying to get list of breweries to load in drop down for selection
+                });
+               
+
+                var resultsLyr = new GraphicsLayer();
+
+                var qTask = new QueryTask({
+                    url: nzBrewUrl
+                });
+
+
+                var params = new Query({
+                    returnGeometry: true,
+                    outFields: ["*"]
+                });
+
+
+                var webmap = new WebMap({
+                    portalItem: {
+                        id: "1d52abc39f2f412bb3ff0e6407796d7c"
+                    },
+                    layers: [resultsLyr]
+                });
+
+
+                var view = new MapView({
+                    map: webmap,
+                    container: "viewDiv"
+                    
+                });
+
+                var scaleBar = new ScaleBar({
+                    view: view,
+                    unit: "dual"
+                });
+
+                view.ui.add(scaleBar, {
+                    position: "bottom-left"
+                });           
+
+                var searchWidget = new Search({
+                    view: view
+                });
+
+                view.ui.add(searchWidget, {
+                    position: "top-left",
+                    index: 0
+                });
+
+                var homeBtn = new Home({
+                    view: view
+                });
+
+                view.ui.add(homeBtn, "top-left");
+
+                var attributeName = dom.byId("brewSelect");
+                var beerID = dom.byId("findBeer");
+
+        function doQuery() {
+            
+            resultsLyr.removeAll();
+            if (attributeName.value == 0)
+            {
+                return;
+            }
+            params.where = "OBJECTID="+attributeName.value;
+            qTask.execute(params)
+                .then(getResults)
+                .otherwise(promiseRejected);
+            view.zoom = 9;
+            
+        }
+
+        function findBeer() {
+            
+            resultsLyr.removeAll();
+            params.where = "OBJECTID=" + beerID.value;
+            qTask.execute(params)
+                .then(getResults)
+                .otherwise(promiseRejected);
+            view.zoom = 9;
+        }
+
+
+        function getResults(response) {
+            
+            var brewResults = arrayUtils.map(response.features, function (
+                feature) {                                
+                return feature;
+            });
+            
+            resultsLyr.addMany(brewResults);
+            view.goTo(brewResults);            
+
+            dom.byId("printResults").innerHTML = brewResults.length +
+                " results found!";
+        }
+
+        function promiseRejected(err) {
+            console.error("Promise rejected: ", err.message);
+        }
+
+        on(dom.byId("doBtn"), "click", doQuery);
+        on(dom.byId("findBeer"), "click", findBeer);
+        
+
+  });
+
+    </script>
+</head>
+
+<body  class="container">
+    <div id="optionsDiv1">
+        <button id="findBeer" value="55" title="On click will take you to Deep Creek Brewery">Find The Beer</button>
+    </div>
+    <div id="viewDiv"></div>
+    <div id="optionsDiv">
+        <h2>Breweries in New Zealand</h2>
+        <select id="brewSelect">
+            <option value="0">--Select--</option>
+            <option value="55">Deep Creek Brewery</option>
+            <option value="56">Baylands Brewery</option>
+            <option value="35">Invercargill Brewery</option>            
+        </select>
+        <br>
+        <br>
+        <button id="doBtn">Find The Brewery</button>        
+        <br>
+        <p><span id="printResults"></span></p>
+    </div>
+
+
+</body>
+
+</html>
